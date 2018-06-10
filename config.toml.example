@@ -2,14 +2,29 @@
 
 host = "10.0.3.195"
 port = "8086"
-db = "ping"
+database = "ping"
+username = "ping"
+password = "pong"
+srchost = "myhost"
+
+[ping]
 measurement = "ping"
-user = "ping"
-pass = "pong"
 
-[hosts]
-
-hosts = [
+ipv4_hosts = [
     "127.0.0.1",
     "8.8.8.8",
+    "1.1.1.1",
+]
+
+ipv6_hosts = [
+    "::1",
+    "2001:4860:4860::8888",
+    "2606:4700:4700::1111",
+]
+
+[http]
+measurement = "http"
+
+urls = [
+    "http://www.example.com/",
 ]

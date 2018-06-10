@@ -1,0 +1,8 @@
+# Vim
+*.sw[op]
+
+# Binary
+infping
+
+# Config file
+config.toml
