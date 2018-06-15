@@ -20,6 +20,12 @@ func slashSplitter(c rune) bool {
 	return c == '/'
 }
 
+func startIPv4Pinger(config *toml.Tree, con client.Client) {
+	for {
+		readIPv4PingPoints(config, con)
+	}
+}
+
 func readIPv4PingPoints(config *toml.Tree, con client.Client) {
 	args := []string{"-B 1", "-D", "-r0", "-O 0", "-Q 10", "-p 1000", "-l"}
 	hosts := config.Get("ping.ipv4_hosts").([]interface{})
@@ -63,6 +69,12 @@ func readIPv4PingPoints(config *toml.Tree, con client.Client) {
 	line, err := std.ReadString('\n')
 	perr(err)
 	log.Printf("stdout:%s", line)
+}
+
+func startIPv6Pinger(config *toml.Tree, con client.Client) {
+	for {
+		readIPv6PingPoints(config, con)
+	}
 }
 
 func readIPv6PingPoints(config *toml.Tree, con client.Client) {

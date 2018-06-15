@@ -45,7 +45,7 @@ func main() {
 	}
 	log.Printf("Connected to influxdb! %v, %s", dur, ver)
 
-	go readIPv4PingPoints(config, con)
-	go readIPv6PingPoints(config, con)
+	go startIPv4Pinger(config, con)
+	go startIPv6Pinger(config, con)
 	readHTTPPoints(config, con)
 }
