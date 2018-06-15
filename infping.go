@@ -23,17 +23,21 @@ func slashSplitter(c rune) bool {
 func startIPv4Pinger(config *toml.Tree, con client.Client) {
 	for {
 		readIPv4PingPoints(config, con)
+		time.Sleep(time.Second * 1)
 	}
 }
 
 func readIPv4PingPoints(config *toml.Tree, con client.Client) {
+	verbose := config.Get("core.verbose").(bool)
 	args := []string{"-B 1", "-D", "-r0", "-O 0", "-Q 10", "-p 1000", "-l"}
 	hosts := config.Get("ping.ipv4_hosts").([]interface{})
 	for _, v := range hosts {
 		host, _ := v.(string)
 		args = append(args, host)
 	}
-	log.Printf("Going to ping the following hosts: %q", hosts)
+	if verbose {
+		log.Printf("Going to ping the following hosts: %q", hosts)
+	}
 	cmd := exec.Command("/usr/bin/fping", args...)
 	stdout, err := cmd.StdoutPipe()
 	herr(err)
@@ -61,30 +65,38 @@ func readIPv4PingPoints(config *toml.Tree, con client.Client) {
 				td := strings.FieldsFunc(times, slashSplitter)
 				min, avg, max = td[0], td[1], td[2]
 			}
-			log.Printf("Host:%s, loss: %s, min: %s, avg: %s, max: %s", host, lossp, min, avg, max)
+			if verbose {
+				log.Printf("Host:%s, loss: %s, min: %s, avg: %s, max: %s", host, lossp, min, avg, max)
+			}
 			writePingPoints(config, con, host, "ipv4", sent, recv, lossp, min, avg, max)
 		}
 	}
 	std := bufio.NewReader(stdout)
 	line, err := std.ReadString('\n')
 	perr(err)
-	log.Printf("stdout:%s", line)
+	if verbose {
+		log.Printf("fping died; stdout:%s", line)
+	}
 }
 
 func startIPv6Pinger(config *toml.Tree, con client.Client) {
 	for {
 		readIPv6PingPoints(config, con)
+		time.Sleep(time.Second * 1)
 	}
 }
 
 func readIPv6PingPoints(config *toml.Tree, con client.Client) {
+	verbose := config.Get("core.verbose").(bool)
 	args := []string{"-B 1", "-D", "-r0", "-Q 10", "-p 1000", "-l"}
 	hosts := config.Get("ping.ipv6_hosts").([]interface{})
 	for _, v := range hosts {
 		host, _ := v.(string)
 		args = append(args, host)
 	}
-	log.Printf("Going to ping the following hosts: %q", hosts)
+	if verbose {
+		log.Printf("Going to ping the following hosts: %q", hosts)
+	}
 	cmd := exec.Command("/usr/bin/fping6", args...)
 	stdout, err := cmd.StdoutPipe()
 	herr(err)
@@ -112,14 +124,18 @@ func readIPv6PingPoints(config *toml.Tree, con client.Client) {
 				td := strings.FieldsFunc(times, slashSplitter)
 				min, avg, max = td[0], td[1], td[2]
 			}
-			log.Printf("Host:%s, loss: %s, min: %s, avg: %s, max: %s", host, lossp, min, avg, max)
+			if verbose {
+				log.Printf("Host:%s, loss: %s, min: %s, avg: %s, max: %s", host, lossp, min, avg, max)
+			}
 			writePingPoints(config, con, host, "ipv6", sent, recv, lossp, min, avg, max)
 		}
 	}
 	std := bufio.NewReader(stdout)
 	line, err := std.ReadString('\n')
 	perr(err)
-	log.Printf("stdout:%s", line)
+	if verbose {
+		log.Printf("fping6 died; stdout:%s", line)
+	}
 }
 
 func writePingPoints(config *toml.Tree, con client.Client,

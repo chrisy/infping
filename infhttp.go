@@ -15,8 +15,11 @@ import (
 )
 
 func readHTTPPoints(config *toml.Tree, con client.Client) {
+	verbose := config.Get("core.verbose").(bool)
 	urls := config.Get("http.urls").([]interface{})
-	log.Printf("Going to fetch the following urls: %q", urls)
+	if verbose {
+		log.Printf("Going to fetch the following urls: %q", urls)
+	}
 	for {
 		for _, v := range urls {
 			url, _ := v.(string)
@@ -30,7 +33,9 @@ func readHTTPPoints(config *toml.Tree, con client.Client) {
 				elapsed := time.Since(start).Seconds()
 				code := response.StatusCode
 				bytes := len(contents)
-				log.Printf("Url:%s, code: %s, bytes: %s, elapsed: %s", url, code, bytes, elapsed)
+				if verbose {
+					log.Printf("Url:%s, code: %s, bytes: %s, elapsed: %s", url, code, bytes, elapsed)
+				}
 				writeHTTPPoints(config, con, url, code, bytes, elapsed)
 			}(url)
 		}
