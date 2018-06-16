@@ -17,26 +17,37 @@ import (
 )
 
 func makeClient(family string, addrstr string) *http.Client {
-	// Create a transport like http.DefaultTransport, but with a specified localAddr
+	// Create an HTTP client with a bound local address
 
-	var addr net.Addr
+	var addr net.TCPAddr
 
 	if len(addrstr) > 0 {
-		addr, _ = net.ResolveIPAddr(family, addrstr)
+		if strings.HasPrefix(addrstr, "if:") {
+			// lookup address from interface
+			ip, err := lookupAddrFromIface(addrstr[3:],
+				family == "ipv6")
+			herr(err)
+
+			addr = net.TCPAddr{IP: ip}
+		} else {
+			ipaddr, err := net.ResolveIPAddr("ip", addrstr)
+			herr(err)
+
+			addr = net.TCPAddr{IP: ipaddr.IP}
+		}
 	}
 
 	dialer := (&net.Dialer{
-		LocalAddr: addr,
-		DualStack: false,
+		LocalAddr: &addr,
+		DualStack: true,
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
 	}).Dial
 
 	transport := &http.Transport{
-		//Proxy: http.ProxyFromEnvironment,
-		Dial: dialer,
-		//MaxIdleConns:          100,
-		//IdleConnTimeout:       90 * time.Second,
-		//TLSHandshakeTimeout:   10 * time.Second,
-		//ExpectContinueTimeout: 1 * time.Second,
+		Proxy:               http.ProxyFromEnvironment,
+		Dial:                dialer,
+		TLSHandshakeTimeout: 10 * time.Second,
 	}
 
 	client := &http.Client{
@@ -48,6 +59,7 @@ func makeClient(family string, addrstr string) *http.Client {
 
 func readHTTPPoints(config *toml.Tree, con client.Client) {
 	verbose := config.Get("core.verbose").(bool)
+	debug := config.Get("core.debug").(bool)
 	urls := config.Get("http.urls").([]interface{})
 	ipv4_srcaddr := config.Get("http.ipv4_srcaddr").(string)
 	ipv6_srcaddr := config.Get("http.ipv6_srcaddr").(string)
@@ -69,17 +81,34 @@ func readHTTPPoints(config *toml.Tree, con client.Client) {
 				var err error
 
 				if strings.HasPrefix(url, "ipv4:") {
+					if debug {
+						log.Printf("http using ipv4 client for %s", url)
+					}
 					response, err = ipv4_client.Get(url[5:])
 				} else if strings.HasPrefix(url, "ipv6:") {
+					if debug {
+						log.Printf("http using ipv6 client for %s", url)
+					}
 					response, err = ipv6_client.Get(url[5:])
 				} else {
+					if debug {
+						log.Printf("http using base client for %s", url)
+					}
 					response, err = http.Get(url)
 				}
 
 				perr(err)
+				if err != nil {
+					return
+				}
+
 				contents, err := ioutil.ReadAll(response.Body)
 				defer response.Body.Close()
+
 				perr(err)
+				if err != nil {
+					return
+				}
 
 				elapsed := time.Since(start).Seconds()
 				code := response.StatusCode

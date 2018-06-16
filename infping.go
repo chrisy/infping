@@ -36,38 +36,62 @@ func startIPv6Pinger(config *toml.Tree, con client.Client) {
 
 func readPingPoints(config *toml.Tree, con client.Client, family string, fping string) {
 	verbose := config.Get("core.verbose").(bool)
+	debug := config.Get("core.debug").(bool)
 	hosts := config.Get("ping." + family + "_hosts").([]interface{})
 	srcaddr := config.Get("ping." + family + "_srcaddr").(string)
 
 	if verbose {
-		log.Printf("Going to ping the following hosts: %q", hosts)
+		log.Printf("Going to %s ping the following hosts: %q", family, hosts)
 	}
 
-	args := []string{"-B 1", "-D", "-r0", "-O 0", "-Q 10", "-p 1000", "-l"}
+	args := []string{"-B1", "-D", "-r0", "-Q10", "-p1000", "-l"}
+
+	if family == "ipv4" {
+		// Add ToS = 0
+		args = append(args, "-O0")
+	}
 
 	if len(srcaddr) > 0 {
 		// Add a source address
-		args = append(args, "-S "+srcaddr)
+		if strings.HasPrefix(srcaddr, "if:") {
+			// Get address from target interface
+			ip, err := lookupAddrFromIface(srcaddr[3:],
+				family == "ipv6")
+			herr(err)
+
+			srcaddr = ip.String()
+		}
+		args = append(args, "-S"+srcaddr)
 	}
 
 	for _, v := range hosts {
 		host, _ := v.(string)
 		args = append(args, host)
 	}
+
+	if debug {
+		log.Printf("%s cmd: %s %q", fping, "/usr/bin/"+fping, args)
+	}
 	cmd := exec.Command("/usr/bin/"+fping, args...)
+
 	stdout, err := cmd.StdoutPipe()
 	herr(err)
 	stderr, err := cmd.StderrPipe()
 	herr(err)
+
 	cmd.Start()
 	perr(err)
 
 	buff := bufio.NewScanner(stderr)
 	for buff.Scan() {
 		text := buff.Text()
+		if debug {
+			log.Printf("%s stderr: %s", fping, text)
+		}
 		fields := strings.Fields(text)
+
 		// Ignore timestamp
-		if len(fields) > 1 {
+		if len(fields) > 4 {
 			host := fields[0]
 			data := fields[4]
 			dataSplitted := strings.FieldsFunc(data, slashSplitter)
@@ -96,7 +120,7 @@ func readPingPoints(config *toml.Tree, con client.Client, family string, fping s
 	line, err := std.ReadString('\n')
 	perr(err)
 
-	if verbose {
+	if debug {
 		log.Printf("%s died; stdout: %s", fping, line)
 	}
 }
