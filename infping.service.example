@@ -1,0 +1,14 @@
+[Unit]
+AssertPathExists=/usr/bin/infping
+AssertPathExists=/etc/infping.toml
+
+[Service]
+ExecStart=/usr/bin/infping --config /etc/infping.toml
+Restart=Always
+RestartSec=15
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
+

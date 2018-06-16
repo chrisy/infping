@@ -10,12 +10,14 @@ srchost = "myhost"
 [ping]
 measurement = "ping"
 
+#ipv4_srcaddr = "192.168.1.1"
 ipv4_hosts = [
     "127.0.0.1",
     "8.8.8.8",
     "1.1.1.1",
 ]
 
+#ipv6_srcaddr = "2001:dba::1"
 ipv6_hosts = [
     "::1",
     "2001:4860:4860::8888",
@@ -25,6 +27,11 @@ ipv6_hosts = [
 [http]
 measurement = "http"
 
+ipv4_srcaddr = "127.0.0.1"
+ipv6_srcaddr = "::1"
+
 urls = [
     "http://www.example.com/",
+    "ipv4:http://www.example.com/",
+    "ipv6:http://www.example.com/",
 ]

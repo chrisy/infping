@@ -22,23 +22,39 @@ func slashSplitter(c rune) bool {
 
 func startIPv4Pinger(config *toml.Tree, con client.Client) {
 	for {
-		readIPv4PingPoints(config, con)
+		readPingPoints(config, con, "ipv4", "fping")
 		time.Sleep(time.Second * 1)
 	}
 }
 
-func readIPv4PingPoints(config *toml.Tree, con client.Client) {
+func startIPv6Pinger(config *toml.Tree, con client.Client) {
+	for {
+		readPingPoints(config, con, "ipv6", "fping6")
+		time.Sleep(time.Second * 1)
+	}
+}
+
+func readPingPoints(config *toml.Tree, con client.Client, family string, fping string) {
 	verbose := config.Get("core.verbose").(bool)
+	hosts := config.Get("ping." + family + "_hosts").([]interface{})
+	srcaddr := config.Get("ping." + family + "_srcaddr").(string)
+
+	if verbose {
+		log.Printf("Going to ping the following hosts: %q", hosts)
+	}
+
 	args := []string{"-B 1", "-D", "-r0", "-O 0", "-Q 10", "-p 1000", "-l"}
-	hosts := config.Get("ping.ipv4_hosts").([]interface{})
+
+	if len(srcaddr) > 0 {
+		// Add a source address
+		args = append(args, "-S "+srcaddr)
+	}
+
 	for _, v := range hosts {
 		host, _ := v.(string)
 		args = append(args, host)
 	}
-	if verbose {
-		log.Printf("Going to ping the following hosts: %q", hosts)
-	}
-	cmd := exec.Command("/usr/bin/fping", args...)
+	cmd := exec.Command("/usr/bin/"+fping, args...)
 	stdout, err := cmd.StdoutPipe()
 	herr(err)
 	stderr, err := cmd.StderrPipe()
@@ -55,86 +71,33 @@ func readIPv4PingPoints(config *toml.Tree, con client.Client) {
 			host := fields[0]
 			data := fields[4]
 			dataSplitted := strings.FieldsFunc(data, slashSplitter)
+
 			// Remove ,
 			dataSplitted[2] = strings.TrimRight(dataSplitted[2], "%,")
 			sent, recv, lossp := dataSplitted[0], dataSplitted[1], dataSplitted[2]
 			min, max, avg := "", "", ""
+
 			// Ping times
 			if len(fields) > 5 {
 				times := fields[7]
 				td := strings.FieldsFunc(times, slashSplitter)
 				min, avg, max = td[0], td[1], td[2]
 			}
+
 			if verbose {
-				log.Printf("Host:%s, loss: %s, min: %s, avg: %s, max: %s", host, lossp, min, avg, max)
+				log.Printf("%s Host:%s, loss: %s, min: %s, avg: %s, max: %s",
+					family, host, lossp, min, avg, max)
 			}
-			writePingPoints(config, con, host, "ipv4", sent, recv, lossp, min, avg, max)
+			writePingPoints(config, con, host, family, sent, recv, lossp, min, avg, max)
 		}
 	}
+
 	std := bufio.NewReader(stdout)
 	line, err := std.ReadString('\n')
 	perr(err)
-	if verbose {
-		log.Printf("fping died; stdout:%s", line)
-	}
-}
 
-func startIPv6Pinger(config *toml.Tree, con client.Client) {
-	for {
-		readIPv6PingPoints(config, con)
-		time.Sleep(time.Second * 1)
-	}
-}
-
-func readIPv6PingPoints(config *toml.Tree, con client.Client) {
-	verbose := config.Get("core.verbose").(bool)
-	args := []string{"-B 1", "-D", "-r0", "-Q 10", "-p 1000", "-l"}
-	hosts := config.Get("ping.ipv6_hosts").([]interface{})
-	for _, v := range hosts {
-		host, _ := v.(string)
-		args = append(args, host)
-	}
 	if verbose {
-		log.Printf("Going to ping the following hosts: %q", hosts)
-	}
-	cmd := exec.Command("/usr/bin/fping6", args...)
-	stdout, err := cmd.StdoutPipe()
-	herr(err)
-	stderr, err := cmd.StderrPipe()
-	herr(err)
-	cmd.Start()
-	perr(err)
-
-	buff := bufio.NewScanner(stderr)
-	for buff.Scan() {
-		text := buff.Text()
-		fields := strings.Fields(text)
-		// Ignore timestamp
-		if len(fields) > 1 && fields[1] == ":" {
-			host := fields[0]
-			data := fields[4]
-			dataSplitted := strings.FieldsFunc(data, slashSplitter)
-			// Remove ,
-			dataSplitted[2] = strings.TrimRight(dataSplitted[2], "%,")
-			sent, recv, lossp := dataSplitted[0], dataSplitted[1], dataSplitted[2]
-			min, max, avg := "", "", ""
-			// Ping times
-			if len(fields) > 5 {
-				times := fields[7]
-				td := strings.FieldsFunc(times, slashSplitter)
-				min, avg, max = td[0], td[1], td[2]
-			}
-			if verbose {
-				log.Printf("Host:%s, loss: %s, min: %s, avg: %s, max: %s", host, lossp, min, avg, max)
-			}
-			writePingPoints(config, con, host, "ipv6", sent, recv, lossp, min, avg, max)
-		}
-	}
-	std := bufio.NewReader(stdout)
-	line, err := std.ReadString('\n')
-	perr(err)
-	if verbose {
-		log.Printf("fping6 died; stdout:%s", line)
+		log.Printf("%s died; stdout: %s", fping, line)
 	}
 }
 
