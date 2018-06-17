@@ -58,11 +58,11 @@ func makeClient(family string, addrstr string) *http.Client {
 }
 
 func readHTTPPoints(config *toml.Tree, con client.Client) {
-	verbose := config.Get("core.verbose").(bool)
-	debug := config.Get("core.debug").(bool)
-	urls := config.Get("http.urls").([]interface{})
-	ipv4_srcaddr := config.Get("http.ipv4_srcaddr").(string)
-	ipv6_srcaddr := config.Get("http.ipv6_srcaddr").(string)
+	verbose := config.GetDefault("core.verbose", false).(bool)
+	debug := config.GetDefault("core.debug", false).(bool)
+	urls := config.GetDefault("http.urls", []string{}).([]interface{})
+	ipv4_srcaddr := config.GetDefault("http.ipv4_srcaddr", "").(string)
+	ipv6_srcaddr := config.GetDefault("http.ipv6_srcaddr", "").(string)
 
 	if verbose {
 		log.Printf("Going to fetch the following urls: %q", urls)

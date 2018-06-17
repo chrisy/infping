@@ -35,10 +35,18 @@ func startIPv6Pinger(config *toml.Tree, con client.Client) {
 }
 
 func readPingPoints(config *toml.Tree, con client.Client, family string, fping string) {
-	verbose := config.Get("core.verbose").(bool)
-	debug := config.Get("core.debug").(bool)
-	hosts := config.Get("ping." + family + "_hosts").([]interface{})
-	srcaddr := config.Get("ping." + family + "_srcaddr").(string)
+	verbose := config.GetDefault("core.verbose", false).(bool)
+	debug := config.GetDefault("core.debug", false).(bool)
+	hosts := config.GetDefault("ping."+family+"_hosts",
+		[]string{}).([]interface{})
+	srcaddr := config.GetDefault("ping."+family+"_srcaddr", "").(string)
+
+	if len(hosts) == 0 {
+		// don't try to do anything
+		// TODO this will sit in a loop doing nothing, we should do
+		// this in a cleaner way
+		return
+	}
 
 	if verbose {
 		log.Printf("Going to %s ping the following hosts: %q", family, hosts)
