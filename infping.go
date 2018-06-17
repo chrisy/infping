@@ -91,29 +91,35 @@ func readPingPoints(config *toml.Tree, con client.Client, family string, fping s
 		fields := strings.Fields(text)
 
 		// Ignore timestamp
-		if len(fields) > 4 {
-			host := fields[0]
-			data := fields[4]
-			dataSplitted := strings.FieldsFunc(data, slashSplitter)
-
-			// Remove ,
-			dataSplitted[2] = strings.TrimRight(dataSplitted[2], "%,")
-			sent, recv, lossp := dataSplitted[0], dataSplitted[1], dataSplitted[2]
-			min, max, avg := "", "", ""
-
-			// Ping times
-			if len(fields) > 5 {
-				times := fields[7]
-				td := strings.FieldsFunc(times, slashSplitter)
-				min, avg, max = td[0], td[1], td[2]
-			}
-
-			if verbose {
-				log.Printf("%s Host:%s, loss: %s, min: %s, avg: %s, max: %s",
-					family, host, lossp, min, avg, max)
-			}
-			writePingPoints(config, con, host, family, sent, recv, lossp, min, avg, max)
+		if len(fields) < 4 {
+			continue
 		}
+
+		host := fields[0]
+		data := fields[4]
+		dataSplitted := strings.FieldsFunc(data, slashSplitter)
+
+		if len(dataSplitted) < 3 {
+			continue
+		}
+
+		// Remove ,
+		dataSplitted[2] = strings.TrimRight(dataSplitted[2], "%,")
+		sent, recv, lossp := dataSplitted[0], dataSplitted[1], dataSplitted[2]
+		min, max, avg := "", "", ""
+
+		// Ping times
+		if len(fields) > 5 {
+			times := fields[7]
+			td := strings.FieldsFunc(times, slashSplitter)
+			min, avg, max = td[0], td[1], td[2]
+		}
+
+		if verbose {
+			log.Printf("%s Host:%s, loss: %s, min: %s, avg: %s, max: %s",
+				family, host, lossp, min, avg, max)
+		}
+		writePingPoints(config, con, host, family, sent, recv, lossp, min, avg, max)
 	}
 
 	std := bufio.NewReader(stdout)
