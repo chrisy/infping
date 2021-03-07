@@ -37,6 +37,7 @@ func startIPv6Pinger(config *toml.Tree, con client.Client) {
 func readPingPoints(config *toml.Tree, con client.Client, family string, fping string) {
 	verbose := config.GetDefault("core.verbose", false).(bool)
 	debug := config.GetDefault("core.debug", false).(bool)
+	period := config.GetDefault("ping.period", int64(4000)).(int64)
 	hosts := config.GetDefault("ping."+family+"_hosts",
 		[]string{}).([]interface{})
 	srcaddr := config.GetDefault("ping."+family+"_srcaddr", "").(string)
@@ -52,11 +53,17 @@ func readPingPoints(config *toml.Tree, con client.Client, family string, fping s
 		log.Printf("Going to %s ping the following hosts: %q", family, hosts)
 	}
 
-	args := []string{"-B1", "-D", "-r0", "-Q10", "-p1000", "-l"}
+	args := []string{"-B1", "-D", "-r0", "-Q10", "-l"}
+
+	// Add period
+	args = append(args, "-p" + strconv.Itoa(int(period)))
 
 	if family == "ipv4" {
+		args = append(args, "--ipv4")
 		// Add ToS = 0
 		args = append(args, "-O0")
+	} else {
+		args = append(args, "--ipv6")
 	}
 
 	if len(srcaddr) > 0 {
@@ -129,6 +136,9 @@ func readPingPoints(config *toml.Tree, con client.Client, family string, fping s
 		}
 		writePingPoints(config, con, host, family, sent, recv, lossp, min, avg, max)
 	}
+
+	// reap dead children
+	cmd.Wait()
 
 	std := bufio.NewReader(stdout)
 	line, err := std.ReadString('\n')
